@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>送料ルール 運用マニュアル</title>
+    <!-- React, ReactDOM, Babel (JSX用), Tailwind CSS を読み込み -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Noto Sans JP', sans-serif; }
+        .font-sans { font-family: 'Noto Sans JP', sans-serif !important; }
+        /* 数字の視認性を高めるための調整 */
+        .tracking-tight { letter-spacing: -0.025em; }
+    </style>
+</head>
+<body class="bg-slate-50">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        // ReactのHooksを抽出
+        const { useState } = React;
+
+        // LucideアイコンをSVGで定義（CDN依存を減らし確実に表示させるため）
+        const Icon = ({ name, className = "w-6 h-6", ...props }) => {
+            const icons = {
+                Truck: (
+                    <>
+                        <path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2m15-5h-3l-1-4h-3v9h7a1 1 0 0 0 1-1v-4Z"/>
+                        <path d="M5 18a2 2 0 1 0 0 4 2 2 0 0 0 0-4Zm12 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4Z"/>
+                        <path d="M9 18h6"/>
+                    </>
+                ),
+                CheckCircle: (
+                    <>
+                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                        <polyline points="22 4 12 14.01 9 11.01"/>
+                    </>
+                ),
+                AlertTriangle: (
+                    <>
+                        <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/>
+                        <line x1="12" y1="9" x2="12" y2="13"/>
+                        <line x1="12" y1="17" x2="12.01" y2="17"/>
+                    </>
+                ),
+                HelpCircle: (
+                    <>
+                        <circle cx="12" cy="12" r="10"/>
+                        <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
+                        <line x1="12" y1="17" x2="12.01" y2="17"/>
+                    </>
+                ),
+                Home: (
+                    <>
+                        <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+                        <polyline points="9 22 9 12 15 12 15 22"/>
+                    </>
+                ),
+                Building2: (
+                    <>
+                        <path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"/>
+                        <path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2"/>
+                        <path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2"/>
+                        <path d="M10 6h4"/><path d="M10 10h4"/><path d="M10 14h4"/><path d="M10 18h4"/>
+                    </>
+                ),
+                ShieldAlert: (
+                    <>
+                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/>
+                        <line x1="12" y1="8" x2="12" y2="12"/>
+                        <line x1="12" y1="16" x2="12.01" y2="16"/>
+                    </>
+                ),
+                Search: (
+                    <>
+                        <circle cx="11" cy="11" r="8"/>
+                        <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                    </>
+                ),
+                Calculator: (
+                    <>
+                        <rect x="4" y="2" width="16" height="20" rx="2" ry="2"/>
+                        <line x1="8" y1="6" x2="16" y2="6"/>
+                        <line x1="16" y1="14" x2="16" y2="18"/>
+                        <path d="M16 10h.01"/><path d="M12 10h.01"/><path d="M8 10h.01"/>
+                        <path d="M12 14h.01"/><path d="M8 14h.01"/><path d="M12 18h.01"/><path d="M8 18h.01"/>
+                    </>
+                ),
+                Hammer: (
+                    <>
+                        <path d="m15 5 4 4"/><path d="M15 2 8 9l2 2 7-7Z"/>
+                        <path d="M2 22l7-7"/><path d="M11 13l3.6-3.6"/>
+                        <path d="m14 16 .4-4"/><path d="M8 10l-4 .4"/>
+                    </>
+                ),
+                Wrench: (
+                    <>
+                        <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
+                    </>
+                ),
+                Info: (
+                    <>
+                        <circle cx="12" cy="12" r="10"/>
+                        <line x1="12" y1="16" x2="12" y2="12"/>
+                        <line x1="12" y1="8" x2="12.01" y2="8"/>
+                    </>
+                ),
+                ArrowRight: (
+                    <>
+                        <line x1="5" y1="12" x2="19" y2="12"/>
+                        <polyline points="12 5 19 12 12 19"/>
+                    </>
+                ),
+                UserCheck: (
+                    <>
+                        <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
+                        <circle cx="9" cy="7" r="4"/>
+                        <polyline points="17 11 19 13 23 9"/>
+                    </>
+                ),
+                ClipboardList: (
+                    <>
+                        <rect x="8" y="2" width="8" height="4" rx="1" ry="1"/>
+                        <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/>
+                        <line x1="8" y1="11" x2="8" y2="11"/><line x1="8" y1="16" x2="8" y2="16"/>
+                        <line x1="12" y1="11" x2="16" y2="11"/><line x1="12" y1="16" x2="16" y2="16"/>
+                    </>
+                ),
+                RotateCcw: (
+                    <>
+                        <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+                        <polyline points="3 3 3 8 8 8"/>
+                    </>
+                ),
+                Users: (
+                    <>
+                        <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
+                        <circle cx="9" cy="7" r="4"/>
+                        <path d="M22 21v-2a4 4 0 0 0-3-3.87"/>
+                        <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                    </>
+                )
+            };
+            return (
+                <svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+                    {icons[name]}
+                </svg>
+            );
+        };
+
+        const App = () => {
+            const [activeTab, setActiveTab] = useState('details');
+
+            const faqs = [
+                {
+                    q: "納品先が「施設」なら、注文者が「個人」でも無料ですか？",
+                    a: "はい、無料です。判定基準は「注文者」ではなく「納品先」が個人宅かどうかで判断します。"
+                },
+                {
+                    q: "既存の個人客（定期購買）からも送料を徴収しますか？",
+                    a: "はい、例外なく発生します。不公平感をなくし、一律のルールとして定着させるためです。"
+                },
+                {
+                    q: "競合他社は個人宅でも送料を取っていないが、それでも一律で取るのか？（他社に逃げられないか？）",
+                    a: "はい、原則請求します。ただし、相見積もりなどの場合は上司に相談し、確実に受注できるよう対応してください。"
+                },
+                {
+                    q: "10年以上利用しているお得意様にも、今回からいきなり1,000円請求して本当によいのか？",
+                    a: "はい、請求します。ただし、お客様への配慮は徹底し、説明内容を精査した上でご対応お願いします。"
+                },
+                {
+                    q: "一般販売品を複数注文した場合、1品ごとに1,000円なのか、1配送（1個口）で1,000円なのか？",
+                    a: "1配送（1個口）で1,000円です。複数注文を承った場合でも、一回の配送で発生するのは1,000円となります。"
+                },
+                {
+                    q: "特定福祉用具と一般販売品を同時注文した場合、送料は発生するのか？",
+                    a: "はい、発生します。特定福祉用具に送料は発生しませんが、一般販売品には送料が発生するので、同時注文の場合でも1,000円を請求します。"
+                },
+                {
+                    q: "施設納品は無料だが、入居者が『自分の部屋まで持ってきてほしい』と言った場合、それは施設納品（無料）扱いでいいのか？",
+                    a: "はい、施設納品扱いになるので、送料はかかりません。"
+                },
+                {
+                    q: "出荷後に顧客都合でキャンセルになった場合、請求した送料1,000円は返金するのか、それとも徴収するのか？",
+                    a: "徴収します。顧客都合の場合は必ず回収してください。当社都合の場合は上司に相談して対応してください。"
+                },
+                {
+                    q: "送料を払いたくないから商品代を1,000円値上げして帳尻を合わせてくれと言われたら受けていいのか？",
+                    a: "原則NGです。ただし、やむを得ない場合は上司に相談の上、対応してください。"
+                },
+                {
+                    q: "メーカー送料20%上乗せ後の端数は、1円単位まで請求するのか、100円単位で切り上げるのか？",
+                    a: "端数は100円単位切り上げを推奨しています。（例：550円→600円）"
+                },
+                {
+                    q: "メーカーから支店に届いたものを営業が持っていくのは『直送』ではないが、この場合の費用はどう計算するのか？",
+                    a: "手運びに該当するので、一律で送料1,000円を請求します。ただし、メーカー送料が発生している場合は、仕入金額÷0.8の送料を請求します。"
+                },
+                {
+                    q: "デモ機で送料を徴収した後、そのまま購入に至った場合、購入時の送料1,000円は二重で取ることになるのか？",
+                    a: "はい、両方請求します。デモ機の送料と販売の送料は別計上されるので、別々で請求となります。"
+                },
+                {
+                    q: "定価の1割引き後の100円単位切り上げをすると、実質的に値引き幅がかなり小さくなるが、柔軟に対応してよいか？",
+                    a: "原則NGです。理由は、端数を切り捨てで値引きしてしまうと1割以上の値引きとなってしまうからです。あくまで定価販売を推奨、値引きは1割までということを抑えてください。1割以上の値引きをしたい場合は、上司に相談の上、対応してください。"
+                },
+                {
+                    q: "法人が一括注文し、納品先が3箇所の個人宅に分かれる場合、送料は3,000円（1,000円×3）になりますか？",
+                    a: "受注内容によります。伝票先が法人の場合は1,000円、個人顧客の場合はそれぞれに1,000円ずつを請求します。ただし、法人宛てに納品することで送料は発生しないので、法人担当者に掛け合ってみてください。特殊な事例の場合は上司と相談の上、対応してください。"
+                },
+                {
+                    q: "不良品による返品・交換の場合、メーカーへの返送送料や再配送の1,000円は誰が負担するのか？",
+                    a: "メーカー担当者に相談の上、取り決めをしてください。原則メーカー負担となります。"
+                },
+                {
+                    q: "当日中にどうしても届けてほしいという緊急の依頼でも、ルール通りの金額でいいのか、特急料金を乗せるべきか？",
+                    a: "ルール通りの送料で請求してください。ただし、納品までの工程に特殊事例や工数が非常に多い納品の場合は、上司に相談の上、対応してください。"
+                },
+                {
+                    q: "伝票入力時に送料の入れ忘れが起きた場合、後から追加請求してもいいのか？",
+                    a: "まずは担当営業に連絡し、追加請求が可能かどうか判断を仰いでください。再発防止のためにミスの原因を共有しましょう。"
+                },
+                {
+                    q: "お客様に渡すための『送料改定のお知らせ』のチラシや、公式なパンフレットは会社で用意してくれるのか？",
+                    a: "原則ありません。担当営業から口頭での説明をお願いします。ただし、チラシやパンフレットが必要な場合は、理由や経緯を上司に報告し、会社として判断するので相談してください。"
+                }
+            ];
+
+            return (
+                <div className="min-h-screen bg-slate-50 font-sans text-slate-800 pb-12 text-base md:text-lg">
+                    {/* Header */}
+                    <header className="bg-[#003366] text-white p-8 shadow-md mb-8">
+                        <div className="max-w-4xl mx-auto flex flex-col md:flex-row md:items-end justify-between gap-4">
+                            <div>
+                                <h1 className="text-3xl font-bold flex items-center gap-3 text-white">
+                                    <Icon name="ShieldAlert" className="w-10 h-10 text-yellow-400" />
+                                    送料ルール 運用マニュアル
+                                </h1>
+                                <p className="text-blue-200 mt-2 italic text-base">
+                                    東洋ケアサービス株式会社 - <span className="bg-blue-900 px-2 py-0.5 rounded text-white not-italic font-bold text-sm">個人販売専用</span> 2026年4月改訂版
+                                </p>
+                            </div>
+                        </div>
+                    </header>
+
+                    <main className="max-w-4xl mx-auto px-4 text-slate-800">
+                        {/* Scope Indicator */}
+                        <div className="mb-6 flex items-center gap-3 bg-white border-2 border-[#003366] p-4 rounded-xl shadow-sm">
+                            <div className="bg-[#003366] p-2 rounded-lg shrink-0">
+                                <Icon name="Users" className="w-6 h-6 text-white" />
+                            </div>
+                            <div>
+                                <p className="text-xs font-bold text-[#003366] uppercase tracking-widest">本マニュアルの適用範囲</p>
+                                <p className="text-base font-bold text-slate-800">本ルールは <span className="text-red-600 underline decoration-2 underline-offset-4">個人顧客に対する販売のみ</span> に適用します。法人顧客は対象外です。</p>
+                            </div>
+                        </div>
+
+                        {/* Tab Navigation */}
+                        <div className="flex bg-white rounded-xl p-2 shadow-sm border border-slate-200 mb-8 text-lg font-bold">
+                            <button 
+                                onClick={() => setActiveTab('details')}
+                                className={`flex-1 py-4 rounded-lg transition-all flex items-center justify-center gap-3 ${activeTab === 'details' ? 'bg-[#003366] text-white shadow-lg' : 'text-slate-500 hover:bg-slate-50'}`}
+                            >
+                                <Icon name="Search" className="w-6 h-6" />
+                                実務ルール詳細
+                            </button>
+                            <button 
+                                onClick={() => setActiveTab('faq')}
+                                className={`flex-1 py-4 rounded-lg transition-all flex items-center justify-center gap-3 ${activeTab === 'faq' ? 'bg-[#003366] text-white shadow-lg' : 'text-slate-500 hover:bg-slate-50'}`}
+                            >
+                                <Icon name="HelpCircle" className="w-6 h-6" />
+                                よくある質問
+                            </button>
+                        </div>
+
+                        {/* Content Area */}
+                        {activeTab === 'details' && (
+                            <div className="space-y-8 animate-in slide-in-from-bottom-2 duration-300">
+                                
+                                {/* 1. Basic Determination */}
+                                <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                                    <div className="bg-slate-50 p-5 border-b border-slate-200">
+                                        <h3 className="text-xl font-bold flex items-center gap-2 text-[#003366]">
+                                            <Icon name="Info" className="w-5 h-5" /> 送料判定基準 <span className="text-sm font-normal text-slate-500 ml-2">（個人販売のみ）</span>
+                                        </h3>
+                                    </div>
+                                    <div className="p-10">
+                                        <div className="flex flex-col items-center gap-8 text-slate-800">
+                                            <div className="w-full max-w-md text-center bg-blue-50 border-2 border-blue-100 p-6 rounded-xl relative shadow-sm">
+                                                <p className="text-xl font-bold text-blue-900 font-sans">「納品先」による送料</p>
+                                                <div className="absolute -bottom-8 left-1/4 w-px h-8 bg-slate-300"></div>
+                                                <div className="absolute -bottom-8 right-1/4 w-px h-8 bg-slate-300"></div>
+                                            </div>
+                                            <div className="grid grid-cols-2 gap-8 w-full">
+                                                <div className="bg-green-50 border-2 border-green-200 p-8 rounded-2xl text-center shadow-sm border-b-4 border-b-green-500">
+                                                    <div className="flex justify-center mb-3"><Icon name="Building2" className="w-10 h-10 text-green-600" /></div>
+                                                    <p className="text-base font-bold text-green-800 uppercase tracking-wider">施設・病院</p>
+                                                    <div className="mt-3 text-green-700 font-black text-3xl tracking-tight text-green-800">送料 0円</div>
+                                                    <p className="text-sm text-green-600 mt-3 font-bold leading-relaxed text-green-600">※個人入所者宛でも無料</p>
+                                                </div>
+                                                <div className="bg-red-50 border-2 border-red-200 p-8 rounded-2xl text-center shadow-sm border-b-4 border-b-red-500 text-slate-800">
+                                                    <div className="flex justify-center mb-3"><Icon name="Home" className="w-10 h-10 text-red-600" /></div>
+                                                    <p className="text-base font-bold text-red-800 uppercase tracking-wider">個人宅</p>
+                                                    <div className="mt-3 text-red-700 font-black text-3xl tracking-tight text-red-800">送料 1,000円</div>
+                                                    <p className="text-sm text-red-600 mt-3 font-bold leading-relaxed text-slate-500 text-red-600">
+                                                        ※既存客・定期購買も例外なし<br/>
+                                                        ※販売金額問わず送料発生
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* 2. Detail Rules Grid */}
+                                <div className="grid md:grid-cols-2 gap-6">
+                                    
+                                    {/* Manufacturer Rule */}
+                                    <div className="bg-white rounded-2xl p-8 shadow-sm border border-slate-200 md:col-span-2 text-slate-800">
+                                        <div className="flex items-center gap-4 mb-6">
+                                            <div className="bg-orange-100 p-3 rounded-lg">
+                                                <Icon name="Truck" className="text-orange-600 w-8 h-8" />
+                                            </div>
+                                            <h4 className="text-2xl font-bold text-slate-700 tracking-tight">メーカー送料発生時のルール</h4>
+                                        </div>
+                                        
+                                        <div className="grid md:grid-cols-5 gap-8">
+                                            <div className="md:col-span-2 space-y-6">
+                                                <div className="bg-orange-50 p-6 rounded-2xl border border-orange-100 shadow-inner text-slate-800 text-center md:text-left">
+                                                    <p className="text-xs text-orange-800 font-bold mb-3 uppercase tracking-widest bg-white inline-block px-2 py-1 rounded shadow-sm font-sans">基本計算式</p>
+                                                    <div className="text-4xl font-black text-orange-900 leading-none tracking-tight font-sans">
+                                                        仕入原価 ÷ 0.8
+                                                    </div>
+                                                    <p className="text-sm text-orange-700 mt-4 italic font-bold">※端数は100円単位切り上げ推奨</p>
+                                                </div>
+                                                <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200 text-slate-800 text-sm">
+                                                    <p className="text-xs text-slate-500 font-bold mb-3 uppercase tracking-widest">注意事項</p>
+                                                    <ul className="text-slate-600 space-y-3 list-disc pl-5 font-bold leading-tight">
+                                                        <li>メーカーデモ機も同様の計算式を適用</li>
+                                                        <li>商品代とは別項目として売上計上すること</li>
+                                                    </ul>
+                                                </div>
+                                            </div>
+
+                                            <div className="md:col-span-3 space-y-4">
+                                                <p className="text-sm font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2">
+                                                    <Icon name="RotateCcw" className="w-4 h-4" /> メーカーデモ機 運用フロー
+                                                </p>
+                                                <div className="space-y-3 text-base text-slate-800">
+                                                    <div className="flex gap-4 items-center bg-white border border-slate-100 p-4 rounded-xl shadow-sm">
+                                                        <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center shrink-0 border-2 border-white shadow-sm font-black text-blue-600 text-xl font-sans">1</div>
+                                                        <div className="flex-1">
+                                                            <p className="text-xs font-bold text-blue-500 mb-0.5 uppercase tracking-tighter">在庫確認（営業）</p>
+                                                            <p className="font-bold text-slate-700">メーカーへ在庫と<span className="text-orange-600 underline decoration-orange-300">概算送料</span>を確認する</p>
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex gap-4 items-center bg-white border border-slate-100 p-4 rounded-xl shadow-sm">
+                                                        <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center shrink-0 border-2 border-white shadow-sm font-black text-green-600 text-xl font-sans">2</div>
+                                                        <div className="flex-1">
+                                                            <p className="text-xs font-bold text-green-500 mb-0.5 uppercase tracking-tighter">発注手配（事務へ依頼）</p>
+                                                            <p className="font-bold text-slate-700">デモ機の発注手配を事務担当者へ依頼する</p>
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex gap-4 items-center bg-blue-50 border border-blue-100 p-4 rounded-xl shadow-sm">
+                                                        <div className="w-12 h-12 rounded-full bg-[#003366] flex items-center justify-center shrink-0 border-2 border-white shadow-sm font-black text-white text-xl font-sans">3</div>
+                                                        <div className="flex-1">
+                                                            <p className="text-xs font-bold text-blue-800 mb-0.5 uppercase tracking-tighter">返却手配（事務へ依頼）</p>
+                                                            <p className="font-bold text-slate-700 text-sm md:text-base">返却手配を事務へ依頼 ※この時に送料伝票が発行される</p>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Welfare Goods */}
+                                    <div className="bg-white rounded-2xl p-8 shadow-sm border border-slate-200 text-slate-800">
+                                        <div className="flex items-center gap-4 mb-5">
+                                            <div className="bg-purple-100 p-3 rounded-lg">
+                                                <Icon name="Calculator" className="text-purple-600 w-7 h-7" />
+                                            </div>
+                                            <h4 className="text-xl font-bold text-slate-700 font-sans tracking-tight">特定福祉用具（特福）</h4>
+                                        </div>
+                                        <div className="space-y-4">
+                                            <div className="flex items-start gap-3 text-base bg-slate-50 p-3 rounded-lg border border-slate-100 shadow-sm">
+                                                <Icon name="CheckCircle" className="w-5 h-5 text-green-500 mt-0.5 shrink-0" />
+                                                <span className="font-sans">値引き：原則<span className="font-bold text-purple-700">定価の1割まで</span></span>
+                                            </div>
+                                            <div className="flex items-start gap-3 text-base bg-slate-50 p-3 rounded-lg border border-slate-100 shadow-sm">
+                                                <Icon name="CheckCircle" className="w-5 h-5 text-green-500 mt-0.5 shrink-0" />
+                                                <span className="font-sans">端数処理：<span className="font-bold text-red-600">値引き時のみ</span> 100円単位切り上げ</span>
+                                            </div>
+                                            
+                                            <div className="bg-purple-50/50 p-5 rounded-xl border border-purple-100 mt-2">
+                                                <p className="text-[11px] text-purple-700 font-bold mb-3 uppercase tracking-widest px-1 text-center md:text-left">計算例：シャワーチェア</p>
+                                                <div className="flex items-center justify-between gap-1 md:gap-2">
+                                                    <div className="flex-1 bg-white p-3 rounded-lg border border-purple-100 text-center shadow-sm flex flex-col justify-center min-h-[80px]">
+                                                        <span className="block text-[10px] text-purple-300 font-black mb-1 leading-none uppercase tracking-tighter">定価</span>
+                                                        <span className="text-xs md:text-sm font-black text-slate-700 font-sans tracking-tight">35,800円</span>
+                                                    </div>
+                                                    <Icon name="ArrowRight" className="w-4 h-4 text-purple-200 shrink-0" />
+                                                    <div className="flex-1 bg-white p-3 rounded-lg border border-purple-100 text-center shadow-sm flex flex-col justify-center min-h-[80px]">
+                                                        <span className="block text-[10px] text-purple-300 font-black mb-1 leading-none uppercase tracking-tighter">1割引き</span>
+                                                        <span className="text-xs md:text-sm font-black text-slate-700 font-sans tracking-tight">32,220円</span>
+                                                    </div>
+                                                    <Icon name="ArrowRight" className="w-4 h-4 text-purple-200 shrink-0" />
+                                                    <div className="flex-1 bg-purple-100 p-3 rounded-lg border border-purple-200 text-center shadow-sm flex flex-col justify-center min-h-[80px]">
+                                                        <span className="block text-[10px] text-purple-500 font-black mb-1 leading-none uppercase">販売価格<br/>（税抜）</span>
+                                                        <span className="text-sm md:text-base font-black text-purple-800 underline decoration-purple-300 decoration-2 font-sans tracking-tight">32,300円</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div className="flex items-start gap-3 text-base bg-slate-50 p-3 rounded-lg border border-slate-100 shadow-sm">
+                                                <Icon name="CheckCircle" className="w-5 h-5 text-green-500 mt-0.5 shrink-0" />
+                                                <span className="font-sans">送料：特福単体は原則<span className="font-bold text-blue-600 underline decoration-blue-200">無料</span></span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Housing Modification */}
+                                    <div className="bg-white rounded-2xl p-8 shadow-sm border border-slate-200 md:col-span-1 text-slate-800">
+                                        <div className="flex items-center gap-4 mb-5">
+                                            <div className="bg-emerald-100 p-3 rounded-lg">
+                                                <Icon name="Hammer" className="text-emerald-600 w-7 h-7" />
+                                            </div>
+                                            <h4 className="text-xl font-bold text-slate-700 italic">住宅改修施工費</h4>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 text-center flex flex-col justify-center min-h-[80px]">
+                                                <p className="text-xs text-slate-500 font-bold mb-1 tracking-tighter uppercase font-sans">取付費（一般）</p>
+                                                <p className="text-xl font-black text-emerald-700 tracking-tight font-sans text-emerald-800">3,000円</p>
+                                            </div>
+                                            <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 text-center flex flex-col justify-center min-h-[80px]">
+                                                <p className="text-xs text-slate-500 font-bold mb-1 tracking-tighter uppercase font-sans">取付費（浴室）</p>
+                                                <p className="text-xl font-black text-emerald-700 tracking-tight font-sans text-emerald-800">4,000円</p>
+                                            </div>
+                                            <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 text-center flex flex-col justify-center min-h-[80px]">
+                                                <p className="text-xs text-slate-500 font-bold mb-1 tracking-tighter uppercase font-sans">屋外壁付け等</p>
+                                                <p className="text-xl font-black text-emerald-700 tracking-tight font-sans text-emerald-800">4,000円</p>
+                                            </div>
+                                            <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 text-center flex flex-col justify-center relative min-h-[100px]">
+                                                <p className="text-xs text-slate-500 font-bold mb-1 tracking-tighter uppercase font-sans">諸経費（増分）</p>
+                                                <p className="text-xl font-black text-emerald-700 tracking-tight font-sans text-emerald-800">+3,000円</p>
+                                                <p className="absolute bottom-1 right-1 text-[8px] text-slate-400 font-bold leading-tight text-right scale-90">
+                                                    ※本社・伊勢崎のみ
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <div className="mt-4 bg-emerald-50 p-4 rounded-xl border border-emerald-100 flex items-center gap-3 shadow-sm">
+                                            <Icon name="Wrench" className="w-6 h-6 text-emerald-600 shrink-0" />
+                                            <p className="text-sm text-emerald-800 leading-tight font-bold font-sans">
+                                                補高便座工事：<span className="text-emerald-900 underline decoration-emerald-200 text-lg font-black tracking-tighter">10,000円別途請求</span><br/>
+                                                <span className="text-[10px] text-emerald-600 font-normal">※依頼は村上主任（サポート事務）へ徹底</span>
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Warning Section */}
+                                <div className="bg-red-50 border border-red-200 rounded-2xl p-6 flex gap-5 items-start shadow-md text-base md:text-lg">
+                                    <Icon name="AlertTriangle" className="text-red-600 w-10 h-10 shrink-0 animate-pulse" />
+                                    <div>
+                                        <h5 className="font-black text-red-900 text-base mb-2 uppercase tracking-wider underline">重要：社外秘・コンプライアンス</h5>
+                                        <p className="text-red-800 leading-relaxed font-bold">
+                                            メーカー送料に対する「20%上乗せ（0.8除算）」という内部ロジックは<span className="underline decoration-red-500 decoration-2 bg-yellow-200 px-1 italic text-red-800">絶対に顧客へ伝えないでください</span>。顧客には「弊社検品・配送事務手数料を一律に含む料金」と案内を統一してください。
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {activeTab === 'faq' && (
+                            <div className="space-y-5 animate-in fade-in duration-300">
+                                {faqs.map((faq, index) => (
+                                    <div key={index} className="bg-white rounded-xl p-8 shadow-sm border border-slate-200 hover:border-blue-400 hover:shadow-md transition-all cursor-default text-slate-800">
+                                        <div className="flex gap-5">
+                                            <div className="bg-blue-100 text-[#003366] w-10 h-10 rounded-lg flex items-center justify-center font-black shrink-0 shadow-sm text-xl leading-none font-sans">Q</div>
+                                            <div className="flex-1 text-base md:text-lg">
+                                                <h4 className="font-bold text-slate-800 mb-4 leading-snug">{faq.q}</h4>
+                                                <div className="flex gap-5 pt-5 border-t border-slate-100 text-slate-800">
+                                                    <div className="bg-green-100 text-green-700 w-10 h-10 rounded-lg flex items-center justify-center font-black shrink-0 shadow-sm text-xl leading-none font-sans text-green-700">A</div>
+                                                    <p className="text-slate-600 leading-relaxed whitespace-pre-wrap font-medium">{faq.a}</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+
+                        {/* Footer Area */}
+                        <div className="mt-16 p-16 bg-slate-200 rounded-[4rem] text-center border-t border-white shadow-inner">
+                            <div className="inline-flex items-center gap-3 px-6 py-2 bg-white rounded-full text-xs font-black text-slate-500 mb-8 shadow-sm text-lg font-sans">
+                                <Icon name="ShieldAlert" className="w-4 h-4 text-red-500" />
+                                機密情報：複製・外部転送・社外への提示を厳禁します
+                            </div>
+                            <p className="text-lg text-slate-600 font-black uppercase tracking-[0.2em] mb-2 font-sans">Toyo Care Service Co., Ltd.</p>
+                            <p className="text-xs text-slate-400 italic font-sans font-bold uppercase tracking-widest leading-loose">Operations & Sales Management Section - 2026 Revision</p>
+                        </div>
+                    </main>
+                </div>
+            );
+        };
+
+        const container = document.getElementById('root');
+        const root = ReactDOM.createRoot(container);
+        root.render(<App />);
+    </script>
+</body>
+</html>
